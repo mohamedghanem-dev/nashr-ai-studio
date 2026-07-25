@@ -1,0 +1,17 @@
+{
+  "name": "NASHR PRO",
+  "short_name": "NASHR",
+  "description": "منصة النشر الاحترافية — Vercel · Netlify · GitHub",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060610",
+  "theme_color": "#060610",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["productivity", "developer"],
+  "icons": [
+    { "src": "icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

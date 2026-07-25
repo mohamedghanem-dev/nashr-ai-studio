@@ -1,0 +1,6 @@
+{
+  "name": "NASHR PRO",
+  "description": "NASHR PRO - Professional publishing and PWA management platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

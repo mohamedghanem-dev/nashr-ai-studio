@@ -1,0 +1,121 @@
+name: Build Cross-Platform App (Android & Windows)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # --- الوظيفة الأولى: بناء تطبيق الأندرويد بالأيقونة الجديدة ---
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Pillow
+        run: pip install Pillow --quiet
+
+      - name: Prepare build folder
+        run: |
+          mkdir -p app/build
+          rsync -av --exclude='.github' --exclude='app' --exclude='node_modules' . app/build/
+
+      - name: Init Capacitor
+        run: |
+          cd app
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets
+          npx cap init "NASHR 1" "dev.mohamedghanem.nashr1" --web-dir build
+
+      - name: Add Android
+        run: |
+          cd app
+          npx cap add android
+
+      - name: Setup icon
+        run: python3 resize_icon.py
+
+      - name: Generate assets
+        run: |
+          cd app
+          npx capacitor-assets generate --android
+
+      - name: Build APK
+        run: |
+          cd app/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NASHR-Android-APK
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  # --- الوظيفة الثانية: بناء تطبيق الويندوز بالأيقونة الرسمية الجديدة ---
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI, Copy Files & Generate Custom Icons
+        shell: pwsh
+        run: |
+          npm init -y
+          npm install @tauri-apps/cli @tauri-apps/api
+          
+          # إنشاء مجلد البناء للويندوز ونسخ ملفات الـ PWA الحقيقية له
+          mkdir dist
+          Copy-Item -Path ".*", "*" -Destination "dist" -Recurse -Exclude "src-tauri", ".github", "node_modules", "dist", "app" -ErrorAction SilentlyContinue
+          
+          # إنشاء مشروع توري الافتراضي
+          npx tauri init --ci --app-name "NASHR_PRO" --frontend-dist "../dist" --dev-url "http://localhost:8080"
+          
+          # [توليد الأيقونة الرسمية الفخمة لمحمد]:
+          if (Test-Path "icon.png") {
+              npx tauri icon icon.png
+          }
+
+          # تعديل الإعدادات والـ identifier
+          $configPath = "src-tauri/tauri.conf.json"
+          $content = Get-Content $configPath
+          $content = $content -replace '"com.tauri.dev"', '"dev.mohamedghanem.nashr1"'
+          $content = $content -replace '"npm run build"', 'null'
+          $content = $content -replace '"npm run dev"', 'null'
+          $content | Set-Content $configPath
+
+      - name: Build Windows Desktop App
+        run: npx tauri build
+
+      - name: Upload Windows Installer (MSI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NASHR-Windows-MSI
+          path: src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Upload Windows Executable (EXE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NASHR-Windows-EXE
+          path: src-tauri/target/release/*.exe
