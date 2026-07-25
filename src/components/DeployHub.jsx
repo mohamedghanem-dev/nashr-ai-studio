@@ -40,8 +40,9 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
     }
   };
 
-  const handleZipSelect = async (e) => {
-    const file = e.target.files?.[0];
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const processZipFile = async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.zip')) {
       onNotify('اختر ملف ZIP صحيح فقط', 'warning');
@@ -60,6 +61,28 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
     } catch (err) {
       onNotify('فشل قراءة ملف ZIP — تأكد إنه سليم', 'error');
     }
+  };
+
+  const handleZipSelect = async (e) => {
+    const file = e.target.files?.[0];
+    await processZipFile(file);
+  };
+
+  const handleZipDrop = async (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    await processZipFile(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   // بيحول ملف ZIP لقائمة ملفات بصيغة base64 صالحة لكل من Vercel وGitHub
@@ -327,17 +350,24 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
             </label>
             <label
               htmlFor="zip-upload-input"
-              className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#2A2A50] hover:border-[#7C5CFC] rounded-xl py-6 cursor-pointer transition-all"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleZipDrop}
+              className={`w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-6 cursor-pointer transition-all ${
+                isDragOver ? 'border-[#7C5CFC] bg-[#7C5CFC]/10' : 'border-[#2A2A50] hover:border-[#7C5CFC]'
+              }`}
             >
-              <Upload className="w-6 h-6 text-[#7C5CFC]" />
+              <Upload className={`w-6 h-6 text-[#7C5CFC] ${isDragOver ? 'scale-110' : ''} transition-transform`} />
               {zipFile ? (
                 <div className="text-center">
                   <div className="text-xs text-white font-bold">{zipFile.name}</div>
-                  <div className="text-[10px] text-[#8888BB] mt-0.5">{zipFileCount} ملف — اضغط للتغيير</div>
+                  <div className="text-[10px] text-[#8888BB] mt-0.5">{zipFileCount} ملف — اضغط أو اسحب ملف تاني للتغيير</div>
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="text-xs text-white font-bold">اضغط لاختيار ملف ZIP</div>
+                  <div className="text-xs text-white font-bold">
+                    {isDragOver ? 'أفلت الملف هنا' : 'اضغط أو اسحب ملف ZIP هنا'}
+                  </div>
                   <div className="text-[10px] text-[#8888BB] mt-0.5">مثل vercel.com/drop بالظبط</div>
                 </div>
               )}

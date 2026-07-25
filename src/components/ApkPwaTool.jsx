@@ -9,7 +9,12 @@ export function ApkPwaTool({ onNotify }) {
   "name": "NASHR PRO - Web Publishing Hub",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
@@ -54,17 +59,33 @@ export function ApkPwaTool({ onNotify }) {
           </div>
 
           <div className="p-3 bg-[#0E0E1E] rounded-xl border border-[#2A2A50] space-y-2">
-            <div className="text-xs font-bold text-[#F59E0B]">الخطوة 2: استخدم منصة PWABuilder أو Web2APK</div>
-            <div className="text-[11px] text-[#8888BB]">ضع رابط الموقع لتحويله فوراً إلى APK أصلي لأجهزة أندرويد</div>
-            <a
-              href="https://www.pwabuilder.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F59E0B] text-black font-extrabold text-xs hover:bg-[#F59E0B]/90 transition-all"
-            >
-              <span>افتح PWABuilder الآن</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="text-xs font-bold text-[#F59E0B]">الخطوة 2: شغّل بناء الـ APK من GitHub Actions</div>
+            <div className="text-[11px] text-[#8888BB]">
+              كل Push على branch main بيشغّل الـ workflow تلقائيًا ويبني ملف APK جاهز، وتقدر كمان تشغّله يدويًا (workflow_dispatch)
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <a
+                href="https://github.com/mohamedghanem-dev/nashr-ai-studio/actions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F59E0B] text-black font-extrabold text-xs hover:bg-[#F59E0B]/90 transition-all"
+              >
+                <span>افتح GitHub Actions</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <a
+                href="https://github.com/mohamedghanem-dev/nashr-ai-studio/actions/workflows/build.yml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0E0E1E] border border-[#2A2A50] text-white font-extrabold text-xs hover:border-[#F59E0B] transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>تحميل آخر APK جاهز</span>
+              </a>
+            </div>
+            <div className="text-[10px] text-[#8888BB] pt-1">
+              APK النهائي بيتلاقى تحت "Artifacts" في آخر run ناجح لـ build-android
+            </div>
           </div>
         </div>
       </div>
