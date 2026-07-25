@@ -27,10 +27,15 @@ jobs:
       - name: Install Pillow
         run: pip install Pillow --quiet
 
+      - name: Install dependencies & build web app
+        run: |
+          npm ci
+          npm run build
+
       - name: Prepare build folder
         run: |
           mkdir -p app/build
-          rsync -av --exclude='.github' --exclude='app' --exclude='node_modules' . app/build/
+          rsync -av dist/ app/build/
 
       - name: Init Capacitor
         run: |
@@ -79,21 +84,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI, Copy Files & Generate Custom Icons
+      - name: Install dependencies & build web app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Tauri CLI & Generate Custom Icons
         shell: pwsh
         run: |
-          npm init -y
           npm install @tauri-apps/cli @tauri-apps/api
-          
-          # إنشاء مجلد البناء للويندوز ونسخ ملفات الـ PWA الحقيقية له
-          mkdir dist
-          Copy-Item -Path ".*", "*" -Destination "dist" -Recurse -Exclude "src-tauri", ".github", "node_modules", "dist", "app" -ErrorAction SilentlyContinue
-          
-          # إنشاء مشروع توري الافتراضي
+
+          # إنشاء مشروع توري الافتراضي، بيقرأ من مجلد dist الحقيقي الناتج عن vite build
           npx tauri init --ci --app-name "NASHR_PRO" --frontend-dist "../dist" --dev-url "http://localhost:8080"
-          
+
           # [توليد الأيقونة الرسمية الفخمة لمحمد]:
-          if (Test-Path "icon.png") {
+          if (Test-Path "public/icon.png") {
+              npx tauri icon public/icon.png
+          } elseif (Test-Path "icon.png") {
               npx tauri icon icon.png
           }
 

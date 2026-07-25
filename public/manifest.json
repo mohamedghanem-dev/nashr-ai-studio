@@ -1,0 +1,21 @@
+{
+  "name": "NASHR PRO",
+  "short_name": "NASHR",
+  "description": "منصة النشر الاحترافية — Vercel · GitHub",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060610",
+  "theme_color": "#060610",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["productivity", "developer"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "نشر مشروع جديد", "short_name": "نشر", "url": "./index.html#deploy", "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "مستودعات GitHub", "short_name": "GitHub", "url": "./index.html#github", "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}
