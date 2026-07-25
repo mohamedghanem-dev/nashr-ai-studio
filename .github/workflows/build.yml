@@ -41,8 +41,8 @@ jobs:
         run: |
           cd app
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets typescript
-          npx cap init "NASHR 1" "dev.mohamedghanem.nashr1" --web-dir build
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets
+          echo '{"appId":"dev.mohamedghanem.nashr1","appName":"NASHR 1","webDir":"build"}' > capacitor.config.json
 
       - name: Add Android
         run: |
