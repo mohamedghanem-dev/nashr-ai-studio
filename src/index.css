@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+/* ==========================================================
+   Light Theme Overrides
+   المكونات بتستخدم ألوان hex ثابتة مباشرة (Tailwind arbitrary values)
+   فبنغطيها هنا لما data-theme="light" يبقى مفعّل، بدل ما نلمس
+   كل ملف component لوحده.
+   ========================================================== */
+[data-theme="light"] body {
+  background-color: var(--light-bg) !important;
+  color: var(--light-text) !important;
+}
+
+/* خلفيات الكروت والأسطح */
+[data-theme="light"] .bg-\[\#141428\] { background-color: var(--light-card) !important; }
+[data-theme="light"] .bg-\[\#0E0E1E\] { background-color: var(--light-surface) !important; }
+[data-theme="light"] .bg-\[\#060610\] { background-color: var(--light-bg) !important; }
+[data-theme="light"] .bg-\[\#060610\]\/70 { background-color: rgb(255 255 255 / 0.7) !important; }
+
+/* الحدود */
+[data-theme="light"] .border-\[\#2A2A50\] { border-color: var(--light-border) !important; }
+
+/* النصوص */
+[data-theme="light"] .text-white { color: var(--light-text) !important; }
+[data-theme="light"] .text-\[\#8888BB\] { color: var(--light-muted) !important; }
+[data-theme="light"] .text-\[\#E8E8FF\] { color: var(--light-text) !important; }
+
+/* حقول الإدخال والقوائم المنسدلة اللي بتستخدم نفس الألوان الغامقة */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  color: var(--light-text) !important;
+}
+
 @layer base {
   :root {
     --dark-bg: #060610;
