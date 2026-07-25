@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import JSZip from 'jszip';
 import { vercelApi, gitHubApi, storage } from '../services/api';
-import { Zap, Upload, Code, CheckCircle2, Rocket, ExternalLink, Copy, Check, RefreshCw } from 'lucide-react';
+import { Zap, Upload, Code, CheckCircle2, Rocket, ExternalLink, Copy, Check, RefreshCw, FileArchive } from 'lucide-react';
 import { GithubIcon } from './Icons';
 
 export function DeployHub({ onNotify, onNavigateAccounts }) {
   const [activeTab, setActiveTab] = useState('vercel'); // vercel, github
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  // Source mode: 'code' (نص HTML واحد) أو 'zip' (مشروع كامل مضغوط)
+  const [sourceMode, setSourceMode] = useState('code');
+  const [zipFile, setZipFile] = useState(null);
+  const [zipFileCount, setZipFileCount] = useState(0);
 
   // Form states
   const [siteName, setSiteName] = useState('');
@@ -34,10 +40,51 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
     }
   };
 
+  const handleZipSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      onNotify('اختر ملف ZIP صحيح فقط', 'warning');
+      return;
+    }
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const count = Object.values(zip.files).filter(f => !f.dir).length;
+      if (count === 0) {
+        onNotify('ملف ZIP فاضي أو تالف', 'error');
+        return;
+      }
+      setZipFile(file);
+      setZipFileCount(count);
+      onNotify(`تم اختيار ZIP فيه ${count} ملف`, 'success');
+    } catch (err) {
+      onNotify('فشل قراءة ملف ZIP — تأكد إنه سليم', 'error');
+    }
+  };
+
+  // بيحول ملف ZIP لقائمة ملفات بصيغة base64 صالحة لكل من Vercel وGitHub
+  const extractZipFiles = async (file) => {
+    const zip = await JSZip.loadAsync(file);
+    const entries = Object.values(zip.files).filter(f => !f.dir);
+    const files = [];
+    for (const entry of entries) {
+      const base64 = await entry.async('base64');
+      // نتجاهل أي مجلد جذر واحد ملفوف داخل الـ ZIP (نمط شائع عند التصدير من أدوات كتير)
+      let cleanPath = entry.name;
+      files.push({ path: cleanPath, base64 });
+    }
+    return files;
+  };
+
+
   const handleDeploy = async (e) => {
     e.preventDefault();
     if (!siteName.trim()) {
       onNotify('أدخل اسم الموقع أو المستودع', 'warning');
+      return;
+    }
+    if (sourceMode === 'zip' && !zipFile) {
+      onNotify('اختر ملف ZIP أولاً', 'warning');
       return;
     }
     const currentAcc = accounts.find(a => Number(a.id) === Number(selectedAccountId));
@@ -53,9 +100,19 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
     try {
       if (activeTab === 'vercel') {
         const cleanName = siteName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        const files = [
-          { file: 'index.html', data: codeContent }
-        ];
+        let files;
+
+        if (sourceMode === 'zip') {
+          setProgressMsg('جارٍ فك ضغط الملفات...');
+          const extracted = await extractZipFiles(zipFile);
+          const hasIndex = extracted.some(f => /(^|\/)index\.html$/i.test(f.path));
+          if (!hasIndex) {
+            throw new Error('لازم يكون في ملف index.html داخل الـ ZIP');
+          }
+          files = extracted.map(f => ({ file: f.path, data: f.base64, encoding: 'base64' }));
+        } else {
+          files = [{ file: 'index.html', data: codeContent }];
+        }
 
         const res = await vercelApi.deployRawFiles(cleanName, files, currentAcc.token, (msg) => {
           setProgressMsg(msg);
@@ -81,16 +138,31 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
 
         const createdRepo = await gitHubApi.createRepo(cleanRepoName, 'Deployed via NASHR PRO', false, currentAcc.token);
 
-        setProgressMsg('رفع ملف index.html إلى المستودع...');
-        const b64 = btoa(unescape(encodeURIComponent(codeContent)));
-        await gitHubApi.uploadFile(
-          createdRepo.owner.login,
-          createdRepo.name,
-          'index.html',
-          b64,
-          'Initial commit via NASHR PRO',
-          currentAcc.token
-        );
+        if (sourceMode === 'zip') {
+          const extracted = await extractZipFiles(zipFile);
+          const filesList = extracted.map(f => ({ path: f.path, contentB64: f.base64 }));
+          await gitHubApi.uploadMultipleFiles(
+            createdRepo.owner.login,
+            createdRepo.name,
+            filesList,
+            'Initial commit via NASHR PRO (ZIP)',
+            currentAcc.token,
+            createdRepo.default_branch,
+            (msg) => setProgressMsg(msg)
+          );
+        } else {
+          setProgressMsg('رفع ملف index.html إلى المستودع...');
+          const b64 = btoa(unescape(encodeURIComponent(codeContent)));
+          await gitHubApi.uploadFile(
+            createdRepo.owner.login,
+            createdRepo.name,
+            'index.html',
+            b64,
+            'Initial commit via NASHR PRO',
+            currentAcc.token,
+            createdRepo.default_branch
+          );
+        }
 
         storage.saveProject({
           name: cleanRepoName,
@@ -216,27 +288,91 @@ export function DeployHub({ onNotify, onNavigateAccounts }) {
           </div>
         </div>
 
-        {/* Code Editor */}
+        {/* Source Mode Switch */}
         <div>
-          <label className="text-xs text-[#8888BB] font-bold block mb-1 flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Code className="w-3.5 h-3.5 text-[#7C5CFC]" />
-              <span>محتوى الملف الرئيسي (index.html)</span>
-            </span>
-            <span className="text-[10px] text-[#8888BB]">HTML / JS / Tailwind CSS</span>
-          </label>
-          <textarea
-            rows={8}
-            value={codeContent}
-            onChange={(e) => setCodeContent(e.target.value)}
-            className="w-full bg-[#0E0E1E] border border-[#2A2A50] rounded-xl p-3 text-xs text-white font-mono dir-ltr text-left outline-none focus:border-[#7C5CFC] leading-relaxed"
-          />
+          <label className="text-xs text-[#8888BB] font-bold block mb-1">مصدر الملفات</label>
+          <div className="flex bg-[#0E0E1E] p-1 rounded-xl border border-[#2A2A50]">
+            <button
+              type="button"
+              onClick={() => setSourceMode('code')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                sourceMode === 'code' ? 'bg-[#7C5CFC] text-white' : 'text-[#8888BB]'
+              }`}
+            >
+              <Code className="w-3.5 h-3.5" />
+              <span>ملف واحد (نص)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceMode('zip')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                sourceMode === 'zip' ? 'bg-[#7C5CFC] text-white' : 'text-[#8888BB]'
+              }`}
+            >
+              <FileArchive className="w-3.5 h-3.5" />
+              <span>مشروع كامل (ZIP)</span>
+            </button>
+          </div>
         </div>
+
+        {sourceMode === 'zip' ? (
+          /* ZIP Upload Zone */
+          <div>
+            <label className="text-xs text-[#8888BB] font-bold block mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <FileArchive className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                <span>ملف ZIP للمشروع</span>
+              </span>
+              <span className="text-[10px] text-[#8888BB]">لازم يحتوي على index.html</span>
+            </label>
+            <label
+              htmlFor="zip-upload-input"
+              className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#2A2A50] hover:border-[#7C5CFC] rounded-xl py-6 cursor-pointer transition-all"
+            >
+              <Upload className="w-6 h-6 text-[#7C5CFC]" />
+              {zipFile ? (
+                <div className="text-center">
+                  <div className="text-xs text-white font-bold">{zipFile.name}</div>
+                  <div className="text-[10px] text-[#8888BB] mt-0.5">{zipFileCount} ملف — اضغط للتغيير</div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="text-xs text-white font-bold">اضغط لاختيار ملف ZIP</div>
+                  <div className="text-[10px] text-[#8888BB] mt-0.5">مثل vercel.com/drop بالظبط</div>
+                </div>
+              )}
+              <input
+                id="zip-upload-input"
+                type="file"
+                accept=".zip"
+                onChange={handleZipSelect}
+                className="hidden"
+              />
+            </label>
+          </div>
+        ) : (
+          /* Code Editor */
+          <div>
+            <label className="text-xs text-[#8888BB] font-bold block mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Code className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                <span>محتوى الملف الرئيسي (index.html)</span>
+              </span>
+              <span className="text-[10px] text-[#8888BB]">HTML / JS / Tailwind CSS</span>
+            </label>
+            <textarea
+              rows={8}
+              value={codeContent}
+              onChange={(e) => setCodeContent(e.target.value)}
+              className="w-full bg-[#0E0E1E] border border-[#2A2A50] rounded-xl p-3 text-xs text-white font-mono dir-ltr text-left outline-none focus:border-[#7C5CFC] leading-relaxed"
+            />
+          </div>
+        )}
 
         {/* Deploy Button */}
         <button
           onClick={handleDeploy}
-          disabled={isDeploying || accounts.length === 0}
+          disabled={isDeploying || accounts.length === 0 || (sourceMode === 'zip' && !zipFile)}
           className={`w-full py-3 rounded-xl font-extrabold text-xs text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-lg ${
             activeTab === 'vercel'
               ? 'bg-[#0070F3] hover:bg-[#0070F3]/90 shadow-[#0070F3]/20'

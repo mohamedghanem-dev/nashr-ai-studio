@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies & build web app
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Prepare build folder
@@ -86,7 +86,7 @@ jobs:
 
       - name: Install dependencies & build web app
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Install Tauri CLI & Generate Custom Icons

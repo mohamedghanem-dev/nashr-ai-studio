@@ -229,7 +229,32 @@ export const gitHubApi = {
     return data;
   },
 
-  uploadFile: async (owner, repo, filePath, contentB64, commitMessage, token) => {
+  getFileSha: async (owner, repo, filePath, token, branch) => {
+    try {
+      const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}${branch ? `?ref=${branch}` : ''}`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      if (!res.ok) return null; // الملف مش موجود أصلاً — يبقى إنشاء جديد
+      const data = await res.json();
+      return data.sha || null;
+    } catch {
+      return null;
+    }
+  },
+
+  uploadFile: async (owner, repo, filePath, contentB64, commitMessage, token, branch) => {
+    // نجيب الـ sha الأول لو الملف موجود بالفعل، عشان GitHub يقبل التحديث بدل ما يرفض بـ conflict
+    const sha = await gitHubApi.getFileSha(owner, repo, filePath, token, branch);
+    const body = {
+      message: commitMessage || 'Upload file via NASHR PRO',
+      content: contentB64,
+      ...(sha ? { sha } : {}),
+      ...(branch ? { branch } : {})
+    };
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
       method: 'PUT',
       headers: {
@@ -237,14 +262,42 @@ export const gitHubApi = {
         'Content-Type': 'application/json',
         'Accept': 'application/vnd.github.v3+json'
       },
-      body: JSON.stringify({
-        message: commitMessage || 'Upload file via NASHR PRO',
-        content: contentB64
-      })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف إلى GitHub');
+    if (!res.ok) {
+      // لو حصل conflict رغم كل حاجة (تعديل متزامن مثلاً)، نجرب مرة واحدة تانية بأحدث sha
+      if (res.status === 409 || res.status === 422) {
+        const freshSha = await gitHubApi.getFileSha(owner, repo, filePath, token, branch);
+        if (freshSha && freshSha !== sha) {
+          const retryRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify({ ...body, sha: freshSha })
+          });
+          const retryData = await retryRes.json();
+          if (retryRes.ok) return retryData;
+        }
+      }
+      throw new Error(data.message || 'فشل رفع الملف إلى GitHub');
+    }
     return data;
+  },
+
+  uploadMultipleFiles: async (owner, repo, filesList, commitMessage, token, branch, onProgress) => {
+    // filesList: [{ path: 'index.html', contentB64: '...' }, ...]
+    const results = [];
+    for (let i = 0; i < filesList.length; i++) {
+      const f = filesList[i];
+      if (onProgress) onProgress(`رفع ${f.path} (${i + 1}/${filesList.length})...`);
+      const res = await gitHubApi.uploadFile(owner, repo, f.path, f.contentB64, commitMessage, token, branch);
+      results.push(res);
+    }
+    return results;
   },
 
   connectGitHubRepoToVercel: async (repoOwner, repoName, vercelToken) => {
