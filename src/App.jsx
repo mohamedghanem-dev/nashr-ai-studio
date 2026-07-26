@@ -8,6 +8,7 @@ import { ProjectsManager } from './components/ProjectsManager';
 import { DeployHub } from './components/DeployHub';
 import { AccountsManager } from './components/AccountsManager';
 import { ApkPwaTool } from './components/ApkPwaTool';
+import { SiteToApk } from './components/SiteToApk';
 import { Settings } from './components/Settings';
 import { storage, vercelApi, gitHubApi } from './services/api';
 import { Lock, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
@@ -222,6 +223,13 @@ export default function App() {
         {activeTab === 'apk' && (
           <ApkPwaTool
             onNotify={showToast}
+          />
+        )}
+
+        {activeTab === 'site-to-apk' && (
+          <SiteToApk
+            onNotify={showToast}
+            onNavigateAccounts={() => setActiveTab('accounts')}
           />
         )}
 

@@ -319,5 +319,71 @@ export const gitHubApi = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || 'فشل ربط مستودع GitHub بـ Vercel');
     return data;
+  },
+
+  // ===== APK-from-URL builder helpers =====
+
+  triggerWorkflow: async (owner, repo, workflowFile, inputs, token, ref = 'main') => {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify({ ref, inputs })
+      }
+    );
+    if (res.status !== 204) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || 'فشل تشغيل الـ workflow');
+    }
+    return true;
+  },
+
+  getWorkflowRuns: async (owner, repo, workflowFile, token) => {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/runs?per_page=5`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل جلب سجل التشغيلات');
+    return data.workflow_runs || [];
+  },
+
+  getRunArtifacts: async (owner, repo, runId, token) => {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل جلب ملفات الناتج');
+    return data.artifacts || [];
+  },
+
+  downloadArtifact: async (owner, repo, artifactId, token) => {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifactId}/zip`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      }
+    );
+    if (!res.ok) throw new Error('فشل تحميل الملف الناتج');
+    return await res.blob();
   }
 };

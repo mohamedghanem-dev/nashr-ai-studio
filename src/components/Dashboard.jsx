@@ -141,6 +141,16 @@ export function Dashboard({ onNavigate, onNotify, onSyncAll }) {
           </button>
 
           <button
+            onClick={() => onNavigate('site-to-apk')}
+            className="flex flex-col items-center gap-1.5 p-3 min-w-[85px] rounded-2xl bg-[#141428] border border-[#2A2A50] hover:border-[#F59E0B] transition-all shrink-0 text-center active:scale-95"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#F59E0B]/15 text-[#F59E0B] flex items-center justify-center">
+              <Rocket className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-white">APK من رابط</span>
+          </button>
+
+          <button
             onClick={() => onNavigate('accounts')}
             className="flex flex-col items-center gap-1.5 p-3 min-w-[85px] rounded-2xl bg-[#141428] border border-[#2A2A50] hover:border-[#60A5FF] transition-all shrink-0 text-center active:scale-95"
           >
